@@ -1,1 +1,523 @@
-选用 pc access 作为opcserver
+// OPCDEMODlg.cpp : implementation file
+//
+
+#include "stdafx.h"
+#include "OPCDEMO.h"
+#include "OPCDEMODlg.h"
+
+#ifdef _DEBUG
+#define new DEBUG_NEW
+#undef THIS_FILE
+static char THIS_FILE[] = __FILE__;
+#endif
+
+#define COUNT 10   //Table数组的大小,状态指示位数量
+
+/////////////////////////////////////////////////////////////////////////////
+// CAboutDlg dialog used for App About
+
+class CAboutDlg : public CDialog
+{
+public:
+	CAboutDlg();
+	
+	// Dialog Data
+	//{{AFX_DATA(CAboutDlg)
+	enum { IDD = IDD_ABOUTBOX };
+	//}}AFX_DATA
+	
+	// ClassWizard generated virtual function overrides
+	//{{AFX_VIRTUAL(CAboutDlg)
+protected:
+	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV support
+	//}}AFX_VIRTUAL
+	
+	// Implementation
+protected:
+	//{{AFX_MSG(CAboutDlg)
+	//}}AFX_MSG
+	DECLARE_MESSAGE_MAP()
+};
+
+CAboutDlg::CAboutDlg() : CDialog(CAboutDlg::IDD)
+{
+	//{{AFX_DATA_INIT(CAboutDlg)
+	//}}AFX_DATA_INIT
+}
+
+void CAboutDlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+	//{{AFX_DATA_MAP(CAboutDlg)
+	//}}AFX_DATA_MAP
+}
+
+BEGIN_MESSAGE_MAP(CAboutDlg, CDialog)
+//{{AFX_MSG_MAP(CAboutDlg)
+// No message handlers
+//}}AFX_MSG_MAP
+END_MESSAGE_MAP()
+
+/////////////////////////////////////////////////////////////////////////////
+// COPCDEMODlg dialog
+
+COPCDEMODlg::COPCDEMODlg(CWnd* pParent /*=NULL*/)
+: CDialog(COPCDEMODlg::IDD, pParent)
+{
+	//{{AFX_DATA_INIT(COPCDEMODlg)
+	// NOTE: the ClassWizard will add member initialization here
+	//}}AFX_DATA_INIT
+	// Note that LoadIcon does not require a subsequent DestroyIcon in Win32
+	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+}
+
+void COPCDEMODlg::DoDataExchange(CDataExchange* pDX)
+{
+	CDialog::DoDataExchange(pDX);
+	//{{AFX_DATA_MAP(COPCDEMODlg)
+	// NOTE: the ClassWizard will add DDX and DDV calls here
+	//}}AFX_DATA_MAP
+}
+
+BEGIN_MESSAGE_MAP(COPCDEMODlg, CDialog)
+//{{AFX_MSG_MAP(COPCDEMODlg)
+ON_WM_SYSCOMMAND()
+ON_WM_PAINT()
+ON_WM_QUERYDRAGICON()
+ON_BN_CLICKED(IDC_BUTTON1, OnButton1)
+ON_BN_CLICKED(IDC_BUTTON2, OnButton2)
+	ON_BN_CLICKED(IDC_BUTTON3, OnButton3)
+	//}}AFX_MSG_MAP
+END_MESSAGE_MAP()
+
+/////////////////////////////////////////////////////////////////////////////
+// COPCDEMODlg message handlers
+
+BOOL COPCDEMODlg::OnInitDialog()
+{
+	CDialog::OnInitDialog();
+	
+	// Add "About..." menu item to system menu.
+	
+	// IDM_ABOUTBOX must be in the system command range.
+	ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
+	ASSERT(IDM_ABOUTBOX < 0xF000);
+	
+	CMenu* pSysMenu = GetSystemMenu(FALSE);
+	if (pSysMenu != NULL)
+	{
+		CString strAboutMenu;
+		strAboutMenu.LoadString(IDS_ABOUTBOX);
+		if (!strAboutMenu.IsEmpty())
+		{
+			pSysMenu->AppendMenu(MF_SEPARATOR);
+			pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
+		}
+	}
+	
+	// Set the icon for this dialog.  The framework does this automatically
+	//  when the application's main window is not a dialog
+	SetIcon(m_hIcon, TRUE);			// Set big icon
+	SetIcon(m_hIcon, FALSE);		// Set small icon
+	
+	// TODO: Add extra initialization here
+	
+	return TRUE;  // return TRUE  unless you set the focus to a control
+}
+
+void COPCDEMODlg::OnSysCommand(UINT nID, LPARAM lParam)
+{
+	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
+	{
+		CAboutDlg dlgAbout;
+		dlgAbout.DoModal();
+	}
+	else
+	{
+		CDialog::OnSysCommand(nID, lParam);
+	}
+}
+
+// If you add a minimize button to your dialog, you will need the code below
+//  to draw the icon.  For MFC applications using the document/view model,
+//  this is automatically done for you by the framework.
+
+void COPCDEMODlg::OnPaint() 
+{
+	if (IsIconic())
+	{
+		CPaintDC dc(this); // device context for painting
+		
+		SendMessage(WM_ICONERASEBKGND, (WPARAM) dc.GetSafeHdc(), 0);
+		
+		// Center icon in client rectangle
+		int cxIcon = GetSystemMetrics(SM_CXICON);
+		int cyIcon = GetSystemMetrics(SM_CYICON);
+		CRect rect;
+		GetClientRect(&rect);
+		int x = (rect.Width() - cxIcon + 1) / 2;
+		int y = (rect.Height() - cyIcon + 1) / 2;
+		
+		// Draw the icon
+		dc.DrawIcon(x, y, m_hIcon);
+	}
+	else
+	{
+		CDialog::OnPaint();
+	}
+}
+
+// The system calls this to obtain the cursor to display while the user drags
+//  the minimized window.
+HCURSOR COPCDEMODlg::OnQueryDragIcon()
+{
+	return (HCURSOR) m_hIcon;
+}
+
+BOOL COPCDEMODlg::InitOPCServer()
+{
+    CLSID clsid;
+	CString strServer = "S7200.OPCServer";
+	HRESULT hr;
+
+	/*初始化COM库*/
+	if (FAILED(::CoInitialize(NULL))) 
+	{
+		AfxMessageBox("Error during CoInitialize", MB_OK );
+        return FALSE;
+	}
+	
+	/*查找OPC服务*/
+	hr = CLSIDFromProgID( strServer.AllocSysString(), &clsid );
+	if( FAILED(hr))
+	{
+        AfxMessageBox("Error during CLSIDFromProgID", MB_OK);
+        return FALSE;
+	}
+	
+	/*创建OPC服务器对象*/
+	LPUNKNOWN pUnkn = NULL;
+	hr = CoCreateInstance(clsid, NULL, CLSCTX_ALL, IID_IOPCServer, (void**)&m_IOPCServer);
+	if( FAILED(hr) || m_IOPCServer == NULL)
+	{
+        AfxMessageBox("Error during CoCreateInstance", MB_OK);
+        return FALSE;
+	}
+
+	/*添加组到OPC服务器*/
+	FLOAT PercentDeadband = 0.0;
+	DWORD RevisedUpdateRate;
+	hr = m_IOPCServer->AddGroup(
+		L"grp1",                 //[in]  组名
+        TRUE,                    //[in]  活动状态
+        500,                     //[in]  向服务器发送请求的刷新率
+        1,                       //[in]  客户端的操作句柄
+        NULL,                    //[in]  与标准时间的校正值
+        &PercentDeadband,        //[in]  要舍弃的数据	
+        0,                       //[in]  服务器使用的语言
+        &m_GrpSrvHandle,            //[out] 添加组以后服务器返回的组句柄
+        &RevisedUpdateRate,      //[out] 服务器的数据刷新率  
+        IID_IOPCItemMgt,         //[in]  添加组的接口类型
+        (LPUNKNOWN*)&m_IOPCItemMgt);  //[out] 服务器返回的接口对象指针
+	if( FAILED(hr) )
+	{  
+		LPWSTR pErrString;
+        AfxMessageBox("Error during AddGroup", MB_OK);
+		hr = m_IOPCServer->GetErrorString(hr, LOCALE_SYSTEM_DEFAULT, &pErrString);
+		if(SUCCEEDED(hr))
+		{
+			//输出错误信息
+		}
+		else
+		{
+			//pErrString = "添加组失败.";
+		}
+		m_IOPCServer->Release();
+		m_IOPCServer=NULL;
+		CoUninitialize();
+        return FALSE;
+	}
+	
+	CString TableStr[COUNT]= {
+		    "进球",      //VB0
+			"进球到位",  //VB1
+			"合格",
+			"不合格",
+			"出球结束",
+			"复位",
+			"其他故障",
+			"运行",      //VB7
+			"MB0",
+			"MB1"
+
+	};
+	Item*  pcItem  = new Item;
+	
+	OPCITEMDEF *m_Items = new OPCITEMDEF[COUNT];                   //项的存取路径, 定义和被请求的数据类等
+	
+	for(int i = 0; i < COUNT; i++)
+	{
+		
+		pcItem->quality = QUAL_BAD;
+		
+		
+		pcItem->name = _T("Microwin.NewPLC.group." + TableStr[i]); //获取路径
+		
+		m_Items[i].szItemID = pcItem->name.AllocSysString();
+		m_Items[i].dwBlobSize = 0;
+		m_Items[i].pBlob = NULL;
+		m_Items[i].bActive = TRUE;
+		m_Items[i].hClient = (OPCHANDLE)pcItem;
+		m_Items[i].szAccessPath = L"";                             //pcItem->cAccessPath.AllocSysString();
+		m_Items[i].vtRequestedDataType = 17;                       //VT_EMPTY;
+	}
+
+	/*添加项目*/
+    OPCITEMRESULT *pOPCResults = NULL;
+	HRESULT *pOPCErrors = NULL;
+    hr = m_IOPCItemMgt->AddItems(COUNT, 
+		m_Items,
+		&pOPCResults, 
+		&pOPCErrors);
+	if(FAILED(hr))
+	{
+		LPWSTR pErrString;
+        AfxMessageBox("Error during AddGroup", MB_OK);
+		hr = m_IOPCServer->GetErrorString(hr, LOCALE_SYSTEM_DEFAULT, &pErrString);
+		if(SUCCEEDED(hr))
+		{
+			
+			//输出错误信息
+		}
+		else
+		{
+			//pErrString = "添加组失败.";
+		}
+		m_IOPCServer->Release();
+		m_IOPCServer=NULL;
+		CoUninitialize();
+        return FALSE;
+	}
+	AfxMessageBox("添加项目成功.");
+	
+	/*保存item对应的服务句柄*/
+	pdwServerHandles = new DWORD[COUNT];
+	for(i = 0; i < COUNT; i++)
+	{
+        if(pOPCErrors[i]= S_OK)
+		{
+			pdwServerHandles[i] = pOPCResults[i].hServer;  
+		}
+	}
+
+	/*获取同步IO口*/
+	hr = m_IOPCItemMgt->QueryInterface(IID_IOPCSyncIO, (void**)&m_IOPCSyncIO);
+    if(FAILED(hr))
+	{
+		LPWSTR pErrString;
+        AfxMessageBox("获取IO口失败", MB_OK);
+		hr = m_IOPCServer->GetErrorString(hr, LOCALE_SYSTEM_DEFAULT, &pErrString);
+		if(SUCCEEDED(hr))
+		{
+			
+			//输出错误信息
+		}
+		else
+		{
+			//pErrString = "获取IO口失败.";
+		}
+		m_IOPCServer->Release();
+		m_IOPCServer=NULL;
+		CoUninitialize();
+        return FALSE;
+	}
+
+    delete[] pdwServerHandles;
+	delete[] m_Items;
+	delete pcItem;
+	return TRUE; 	//初始化完成，可以开始查询.
+}
+
+/* 读取OPC服务器中的状态信息
+*  phServe:  读取项的句柄 
+*  dwSource: 状态获取来源，缓存、内存 
+*/
+BOOL COPCDEMODlg::ReadOPCServe(OPCITEMSTATE **pValues, OPCHANDLE *phServe, OPCDATASOURCE dwSource)
+{
+	HRESULT hr = S_OK;
+    OPCHANDLE *phserve = phServe;
+
+	LPWSTR pErrString; //记录错误信息字符串
+	HRESULT *pErrors= new HRESULT;
+
+	try 
+	{
+		hr = m_IOPCSyncIO->Read(
+			dwSource,          // OPC_DS_CACHE, Source (device or cache)
+			1,//cdwItems,      	    // Item count
+			(OPCHANDLE*)phServe,	// Array of server handles for items
+			pValues,	            // Array of values
+			&pErrors);	            // Array of errors
+		if(FAILED(hr))
+	    {	    
+            AfxMessageBox("Error during AddGroup", MB_OK);
+		    hr = m_IOPCServer->GetErrorString(hr, LOCALE_SYSTEM_DEFAULT, &pErrString);
+		    if(SUCCEEDED(hr))
+		    {
+			    //pErrString输出错误信息
+		    }
+		    else
+		    {
+			    //pErrString = "添加组失败.";
+		    }
+		    m_IOPCServer->Release();
+		    m_IOPCServer=NULL;
+		    CoUninitialize();
+            return FALSE;
+	    }
+	}
+	catch(...)
+	{} 
+	delete pErrors;
+	return  TRUE;	
+}
+
+/* 检查状态位是否正常
+ * pValues: 用于传递从OPC Server获得的状态信息
+ * type:    用于区别位和字节状态信息
+ * bit：    用于指示位状态信息的操作位 eg：M1的M1.x;
+            8:代表字节状态, 0-7代表位状态
+*/
+BOOL COPCDEMODlg::ChkState(OPCITEMSTATE* pValues, int type, int bit)
+{
+    BYTE state = 0; 
+	if(pValues->wQuality == QUAL_BAD)
+	{
+		//记录log 数据质量差
+	//	return FALSE;
+	}
+	else if(VT_EMPTY == V_VT(&pValues->vDataValue))
+	{
+		//没有获取到有效地数据
+	//	return FALSE;
+	}
+	else
+	{}
+
+    switch(bit)
+	{
+        case 0:  state = pValues->vDataValue.boolVal & 1;   break;
+        case 1:  state = pValues->vDataValue.boolVal & 2;   break;
+		case 2:  state = pValues->vDataValue.boolVal & 4;   break;
+		case 3:  state = pValues->vDataValue.boolVal & 8;   break;
+		case 4:  state = pValues->vDataValue.boolVal & 16;  break;
+		case 5:  state = pValues->vDataValue.boolVal & 32;  break;
+		case 6:  state = pValues->vDataValue.boolVal & 64;  break;
+		case 7:  state = pValues->vDataValue.boolVal & 128; break;	
+        default: state = pValues->vDataValue.bVal;          break;	
+    }	
+    
+    if(type == 1) //BIT
+	{
+	    
+	    return  state == 1 ? TRUE : FALSE;
+	}
+	else if(type = 2) //BYTE
+	{
+	    return state == 0xFF ? TRUE : FALSE;
+
+	}
+	else
+	{
+	    //请检查输入类型是否正确
+	    return FALSE;
+	}
+}
+    
+void COPCDEMODlg::OnButton1() 
+{
+	// TODO: Add your control notification handler code here
+	BOOL ret;
+
+    ret = InitOPCServer();
+	if(ret == FALSE)
+	{
+		return;
+	}
+	AfxMessageBox("初始化完成!");
+
+	//OPCDATASOURCE dwSource	= bDeviceRead ? OPC_DS_DEVICE : OPC_DS_CACHE;
+/*	ret = ReadOPCServe(&pValues, &pdwServerHandles[0], OPC_DS_DEVICE); //pValues初始化与操作后地址不一致
+	if(ret == FALSE)
+	{
+		return;
+	}
+
+    ret = ChkState(pValues, 1, 0);
+	if(ret == FALSE)
+	{
+		return;
+	}
+	ReleaseSource();
+*/	return;
+}
+
+/*
+* 释放资源
+*/
+void COPCDEMODlg::ReleaseSource()
+{
+	//	释放同步接口
+	m_IOPCSyncIO->Release();
+	m_IOPCSyncIO = NULL;
+	
+	//	释放item管理接口
+	m_IOPCItemMgt->Release();
+	m_IOPCItemMgt = NULL;
+	
+	//	释放 OPC服务器
+	m_IOPCServer->Release();
+	m_IOPCServer = NULL;
+	
+	//关闭COM库
+	::CoUninitialize();
+}
+BOOL COPCDEMODlg::foo()
+{
+	int ret = 10;
+	return ret == 10 ? TRUE : FALSE;
+}
+
+
+void COPCDEMODlg::OnButton2() 
+{
+	// TODO: Add your control notification handler code here
+
+	BOOL ret;
+	OPCITEMSTATE *pValues = new OPCITEMSTATE; //保存读取的状态值
+	//OPCDATASOURCE dwSource	= bDeviceRead ? OPC_DS_DEVICE : OPC_DS_CACHE;
+	ret = ReadOPCServe(&pValues, &pdwServerHandles[0], OPC_DS_CACHE); //pValues初始化与操作后地址不一致 OPC_DS_DEVICE : OPC_DS_CACHE
+	if(ret == FALSE)
+	{
+
+		return;
+	}
+
+    ret = ChkState(pValues, 1, 0);
+	AfxMessageBox("检查状态完成!");
+	if(ret == FALSE)
+	{
+		return;
+	}
+    AfxMessageBox("检查状态完成!");
+	delete pValues;
+}
+
+
+
+void COPCDEMODlg::OnButton3() 
+{
+	// TODO: Add your control notification handler code here
+	ReleaseSource();
+}
+
